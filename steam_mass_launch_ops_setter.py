@@ -23,6 +23,7 @@ import glob
 import os
 from os import path as op
 import platform
+from sys import exit
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as mb
@@ -40,6 +41,14 @@ STEAM_DIR_DEF = op.expanduser({
 
 STEAM_DIR = os.environ.get("STEAM_DIR", STEAM_DIR_DEF)
 USERDATA_DIR = op.join(STEAM_DIR, "userdata")
+
+if not op.exists(USERDATA_DIR):
+    mb.showerror(
+        "Invalid path",
+        "Could not find the Steam/userdata folder. " +
+        "Try setting the STEAM_DIR environment variable.",
+        )
+    exit(1)
 
 
 class MainWindow(tk.Tk):
