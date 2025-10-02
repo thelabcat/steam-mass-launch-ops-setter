@@ -70,6 +70,8 @@ class MainWindow(tk.Tk):
         self.user_choice = tk.StringVar(self)
         self.statistics = tk.StringVar(self, "No user selected")
         self.overwrite = tk.BooleanVar(self)
+        self.launch_options = tk.StringVar(self)
+        self.launch_options.trace_add("write", lambda *args: self.__on_launch_ops_edit())
 
         self.scan_for_users()
 
@@ -120,7 +122,7 @@ class MainWindow(tk.Tk):
         # User selection
         ttk.Label(self, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
         users = tuple(self.user_local_ids.keys())
-        self.user_chooser = ttk.OptionMenu(self, self.user_choice, users[0], *users, command=self.on_user_select)
+        self.user_chooser = ttk.OptionMenu(self, self.user_choice, users[0], *users, command=self.__on_user_select)
         self.user_chooser.grid(row=0, column=1, sticky=tk.NSEW)
 
         # Statistics display
@@ -128,11 +130,12 @@ class MainWindow(tk.Tk):
 
         # Options entry
         ttk.Label(self, text="Launch options:", anchor=tk.E).grid(row=2, column=0, sticky=tk.NSEW)
-        self.ops_entry = tk.Entry(self)
-        self.ops_entry.grid(row=2, column=1, sticky=tk.NSEW)
+        ttk.Entry(self, textvariable=self.launch_options).grid(row=2, column=1, sticky=tk.NSEW)
 
         # Overwrite
-        ttk.Checkbutton(self, text="Overwrite", variable=self.overwrite).grid(row=3, column=0, columnspan=2, sticky=tk.NS + tk.W)
+        self.overwrite_checkbttn = ttk.Checkbutton(self, text="Overwrite", variable=self.overwrite)
+        self.overwrite_checkbttn.grid(row=3, column=0, columnspan=2, sticky=tk.NS + tk.W)
+        self.overwrite_checkbttn.configure(state=tk.DISABLED)
 
         # Go!
         ttk.Button(self, text="Set", command=self.set_launch_options).grid(row=4, column=0, columnspan=2)
@@ -165,7 +168,13 @@ class MainWindow(tk.Tk):
             self.destroy()
             sys.exit(1)
 
-    def on_user_select(self, e):
+    def __on_launch_ops_edit(self):
+        """The launch options field has been edited"""
+        self.overwrite_checkbttn.configure(
+            state=(tk.DISABLED, tk.NORMAL)[bool(self.launch_options.get())]
+            )
+
+    def __on_user_select(self, e):
         """Refresh stuff based on a new user selection"""
 
         print(f"User `{e}` selected.")
@@ -191,7 +200,7 @@ class MainWindow(tk.Tk):
         # Make sure our data on the user is up to date
         self.load_user_config(self.cur_loc_id)
 
-        new_option = self.ops_entry.get()
+        new_option = self.launch_options.get()
         altered = 0
 
         # Go through the launch options for every Steam app
