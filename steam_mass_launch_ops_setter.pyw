@@ -23,7 +23,7 @@ import glob
 import os
 from os import path as op
 import platform
-from sys import exit
+import sys
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as mb
@@ -48,7 +48,7 @@ if not op.exists(USERDATA_DIR):
         "Could not find the Steam/userdata folder. " +
         "Try setting the STEAM_DIR environment variable.",
         )
-    exit(1)
+    sys.exit(1)
 
 
 class MainWindow(tk.Tk):
@@ -119,7 +119,8 @@ class MainWindow(tk.Tk):
         """Construct the GUI"""
         # User selection
         ttk.Label(self, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
-        self.user_chooser = ttk.OptionMenu(self, self.user_choice, *self.user_local_ids.keys(), command=self.on_user_select)
+        users = tuple(self.user_local_ids.keys())
+        self.user_chooser = ttk.OptionMenu(self, self.user_choice, users[0], *users, command=self.on_user_select)
         self.user_chooser.grid(row=0, column=1, sticky=tk.NSEW)
 
         # Statistics display
@@ -149,13 +150,25 @@ class MainWindow(tk.Tk):
         """Find all user folders and the user name they represent"""
 
         # Clear existing scan
-        self.users = {}
+        self.user_local_ids = {}
+        self.user_datas = {}
 
         for loc_user_id in glob.glob("*", root_dir=USERDATA_DIR):
             self.load_user_config(loc_user_id)
 
-    def on_user_select(self):
+        # No users were found
+        if not self.user_local_ids:
+            mb.showerror(
+                "No users found",
+                "There were no user data directories at the Steam location. Is Steam logged out?"
+                )
+            self.destroy()
+            sys.exit(1)
+
+    def on_user_select(self, e):
         """Refresh stuff based on a new user selection"""
+
+        print(f"User `{e}` selected.")
 
         # Make sure our data on the user is up to date
         self.load_user_config(self.cur_loc_id)
