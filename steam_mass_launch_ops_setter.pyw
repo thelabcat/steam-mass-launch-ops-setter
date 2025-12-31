@@ -242,27 +242,28 @@ class MainWindow(tk.Tk):
 
         # Go through the launch options for every Steam app
         for appid, appconf in self.cur_appconfs.items():
-
-            # There are existing options
-            if "LaunchOptions" in appconf:
-                ops = appconf["LaunchOptions"]
-
+            old_ops = appconf.get("LaunchOptions")
+            # The config has existing options
+            if old_ops:
                 # This is not an erasing
                 if new_option:
                     # The existing options are different than what we want to put
-                    if ops != new_option:
+                    if old_ops != new_option:
                         print("Game with ID", appid, "already has launch options:")
-                        print(f"\t`{ops}`")
+                        print(f"\t`{old_ops}`")
 
                         # We are to overwrite
                         if self.overwrite.get():
                             appconf["LaunchOptions"] = new_option
                             altered += 1
 
-                # This is an erasing, delete the options
-                else:
+                # This is an erasing and an options key exists, delete it
+                elif old_ops is not None:
                     del appconf["LaunchOptions"]
                     altered += 1
+
+                # The only remaining case is that this is an erasing
+                # and there was no options key
 
             # This is not an erasing and there are no previous options
             elif new_option:
