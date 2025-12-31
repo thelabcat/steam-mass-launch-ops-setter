@@ -29,24 +29,40 @@ from tkinter import ttk
 import tkinter.messagebox as mb
 import vdf
 
-DEFAULT_ENC = "utf-8"
+DEFAULT_ENC = sys.getdefaultencoding()  # Usually UTF-8
 
-NEW_OPTION = "obs-gamecapture %command%"
-OVERWRITE = False
-STEAM_DIR_DEF = op.expanduser({
+# Get the usual system location of Steam
+DEFAULT_STEAM_DIR = op.expanduser({
     "Linux": "~/.steam/steam",
     "Windows": r"C:\Program Files (x86)\Steam",
     "Darwin": "~/Library/Application Support/Steam",
     }[platform.system()])
 
-STEAM_DIR = os.environ.get("STEAM_DIR", STEAM_DIR_DEF)
+# Allow the user to override the Steam location
+# This environment variable is the same one Protontricks uses
+STEAM_DIR = os.environ.get("STEAM_DIR", DEFAULT_STEAM_DIR)
+
+# The Steam user data folder
 USERDATA_DIR = op.join(STEAM_DIR, "userdata")
 
+# Padding for GUI widgets
+PAD = 10
+
+# If the Steam user data folder does not exist, we have the wrong Steam path
 if not op.exists(USERDATA_DIR):
+    # If the user did not set STEAM_DIR, suggest they do
+    # Assumes that they did not explicitly set it to the default
+    if STEAM_DIR == DEFAULT_STEAM_DIR:
+        secondhalf = "Try setting the STEAM_DIR environment variable."
+    # If the user set STEAM_DIR, it's pointing to the wrong place
+    else:
+        secondhalf = "STEAM_DIR environment variable is set to an invalid path."
+
+    # Show the error, and exit with a failure status
     mb.showerror(
         "Invalid path",
         "Could not find the Steam/userdata folder. " +
-        "Try setting the STEAM_DIR environment variable.",
+        secondhalf,
         )
     sys.exit(1)
 
@@ -102,14 +118,21 @@ class MainWindow(tk.Tk):
         Args:
             loc_user_id (str): The local user ID (folder name)."""
 
+        # Read the user config file
         with open(self.get_config_file_path(loc_user_id), encoding=DEFAULT_ENC) as f:
             data = vdf.load(f)
+
+        # We can find out the user's name from their friends list
+        # For some reason, a user is always marked as a friend of themselves
         self.user_local_ids[data["UserLocalConfigStore"]["friends"][loc_user_id]["name"]] = loc_user_id
+
+        # Save the user data to our application memory
         self.user_datas[loc_user_id] = data
 
     @property
     def cur_loc_id(self):
         """The currently selected user's local ID"""
+        # The user chooser works with display names
         return self.user_local_ids[self.user_choice.get()]
 
     @property
@@ -119,31 +142,37 @@ class MainWindow(tk.Tk):
 
     def build(self):
         """Construct the GUI"""
+        # Main frame for theming
+        self.frame = ttk.Frame(self)
+        self.frame.grid(padx=PAD, pady=PAD, sticky=tk.NSEW)
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
+
         # User selection
-        ttk.Label(self, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
+        ttk.Label(self.frame, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
         users = tuple(self.user_local_ids.keys())
-        self.user_chooser = ttk.OptionMenu(self, self.user_choice, users[0], *users, command=self.__on_user_select)
+        self.user_chooser = ttk.OptionMenu(self.frame, self.user_choice, users[0], *users, command=self.__on_user_select)
         self.user_chooser.grid(row=0, column=1, sticky=tk.NSEW)
 
         # Statistics display
-        ttk.Label(self, textvariable=self.statistics).grid(row=1, column=0, columnspan=2, sticky=tk.NSEW)
+        ttk.Label(self.frame, textvariable=self.statistics).grid(row=1, column=0, columnspan=2, pady=[PAD, 0], sticky=tk.NSEW)
 
         # Options entry
-        ttk.Label(self, text="Launch options:", anchor=tk.E).grid(row=2, column=0, sticky=tk.NSEW)
-        ttk.Entry(self, textvariable=self.launch_options).grid(row=2, column=1, sticky=tk.NSEW)
+        ttk.Label(self.frame, text="Launch options:", anchor=tk.E).grid(row=2, column=0, pady=[PAD, 0], sticky=tk.NSEW)
+        ttk.Entry(self.frame, textvariable=self.launch_options).grid(row=2, column=1, pady=[PAD, 0], sticky=tk.NSEW)
 
         # Overwrite
-        self.overwrite_checkbttn = ttk.Checkbutton(self, text="Overwrite", variable=self.overwrite)
-        self.overwrite_checkbttn.grid(row=3, column=0, columnspan=2, sticky=tk.NS + tk.W)
+        self.overwrite_checkbttn = ttk.Checkbutton(self.frame, text="Overwrite", variable=self.overwrite)
+        self.overwrite_checkbttn.grid(row=3, column=0, columnspan=2, pady=[PAD, 0], sticky=tk.NS + tk.W)
         self.overwrite_checkbttn.configure(state=tk.DISABLED)
 
         # Go!
-        ttk.Button(self, text="Set", command=self.set_launch_options).grid(row=4, column=0, columnspan=2)
+        ttk.Button(self.frame, text="Set", command=self.set_launch_options).grid(row=4, column=0, pady=[PAD, 0], columnspan=2)
 
         # Allow for expansion
         for row in range(5):
-            self.rowconfigure(row, weight=1)
-        self.columnconfigure(1, weight=1)
+            self.frame.rowconfigure(row, weight=1)
+        self.frame.columnconfigure(1, weight=1)
 
         # Lock built size as minimum
         self.update()
@@ -152,10 +181,11 @@ class MainWindow(tk.Tk):
     def scan_for_users(self):
         """Find all user folders and the user name they represent"""
 
-        # Clear existing scan
+        # Clear existing application memory
         self.user_local_ids = {}
         self.user_datas = {}
 
+        # Find all user config files by path, and load them
         for loc_user_id in glob.glob("*", root_dir=USERDATA_DIR):
             self.load_user_config(loc_user_id)
 
@@ -165,17 +195,20 @@ class MainWindow(tk.Tk):
                 "No users found",
                 "There were no user data directories at the Steam location. Is Steam logged out?"
                 )
+            # The app cannot continue if this happens
+            # TODO: This guarantees that the method is only called at launch
             self.destroy()
             sys.exit(1)
 
     def __on_launch_ops_edit(self):
         """The launch options field has been edited"""
+        # The overwrite checkbutton should be disabled if the option field is empty
         self.overwrite_checkbttn.configure(
             state=(tk.DISABLED, tk.NORMAL)[bool(self.launch_options.get())]
             )
 
     def __on_user_select(self, e):
-        """Refresh stuff based on a new user selection"""
+        """A new user has been selected in the GUI"""
 
         print(f"User `{e}` selected.")
 
@@ -187,11 +220,14 @@ class MainWindow(tk.Tk):
     def refresh_statistics(self):
         """Refresh the statistics display"""
 
+        # Go through the apps, check if they have launch options,
+        # and count the list of resulting app IDs
         have_ops = len([
-            appconf for appid, appconf in self.cur_appconfs.items()
-            if "LaunchOptions" in appconf
+            appid for appid, appconf in self.cur_appconfs.items()
+            if appconf.get("LaunchOptions")
             ])
 
+        # Update the GUI statistics string
         self.statistics.set(f"{len(self.cur_appconfs):,} games, {have_ops:,} of which have set launch options.")
 
     def set_launch_options(self):
@@ -200,6 +236,7 @@ class MainWindow(tk.Tk):
         # Make sure our data on the user is up to date
         self.load_user_config(self.cur_loc_id)
 
+        # Grab the new option from the GUI
         new_option = self.launch_options.get()
         altered = 0
 
@@ -218,7 +255,7 @@ class MainWindow(tk.Tk):
                         print(f"\t`{ops}`")
 
                         # We are to overwrite
-                        if OVERWRITE:
+                        if self.overwrite.get():
                             appconf["LaunchOptions"] = new_option
                             altered += 1
 
@@ -246,3 +283,4 @@ class MainWindow(tk.Tk):
 
 
 MainWindow()
+sys.exit(0)
