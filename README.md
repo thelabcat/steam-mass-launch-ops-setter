@@ -11,7 +11,7 @@ This program relies on Python >= 3.10 (formally written in Python 3.14), plus th
 - [PSUtil](https://pypi.org/project/psutil)
 - [VDF](https://pypi.org/project/vdf)
 
-You can find executables with bundled Python and the dependencies in [the Releases page of this repository](./releases).
+You can find executables with bundled Python and the dependencies in [the Releases page of this repository](../../releases).
 
 ## Usage
 
