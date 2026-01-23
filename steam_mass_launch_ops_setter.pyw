@@ -288,7 +288,10 @@ class MainWindow(tk.Tk):
 # First, search for a Steam process
 found_steam = False
 for process in psutil.process_iter():
-    if process.name().lower() == "steam":
+    if process.name().lower() in (
+        "steam",  # Linux
+        "steam.exe",  # Windows
+        ):
         # We found Steam running, stop searching
         found_steam = True
         break
