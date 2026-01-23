@@ -27,6 +27,7 @@ import sys
 import tkinter as tk
 from tkinter import ttk
 import tkinter.messagebox as mb
+import psutil
 import vdf
 
 DEFAULT_ENC = sys.getdefaultencoding()  # Usually UTF-8
@@ -282,6 +283,21 @@ class MainWindow(tk.Tk):
 
         self.refresh_statistics()
 
+
+# Before opening the window, exit Steam if it is open
+# First, search for a Steam process
+found_steam = False
+for process in psutil.process_iter():
+    if process.name().lower() == "steam":
+        # We found Steam running, stop searching
+        found_steam = True
+        break
+
+# The loop exited because it found Steam
+if found_steam:
+    # Gently tell Steam to exit, and wait for it to do so
+    process.terminate()
+    process.wait()
 
 MainWindow()
 sys.exit(0)
