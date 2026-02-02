@@ -49,24 +49,6 @@ USERDATA_DIR = op.join(STEAM_DIR, "userdata")
 # Padding for GUI widgets
 PAD = 10
 
-# If the Steam user data folder does not exist, we have the wrong Steam path
-if not op.exists(USERDATA_DIR):
-    # If the user did not set STEAM_DIR, suggest they do
-    # Assumes that they did not explicitly set it to the default
-    if STEAM_DIR == DEFAULT_STEAM_DIR:
-        secondhalf = "Try setting the STEAM_DIR environment variable."
-    # If the user set STEAM_DIR, it's pointing to the wrong place
-    else:
-        secondhalf = "STEAM_DIR environment variable is set to an invalid path."
-
-    # Show the error, and exit with a failure status
-    mb.showerror(
-        "Invalid path",
-        "Could not find the Steam/userdata folder. " +
-        secondhalf,
-        )
-    sys.exit(1)
-
 
 class MainWindow(tk.Tk):
     """The main GUI window"""
@@ -90,11 +72,90 @@ class MainWindow(tk.Tk):
         self.launch_options = tk.StringVar(self)
         self.launch_options.trace_add("write", lambda *args: self.__on_launch_ops_edit())
 
-        self.scan_for_users()
-
+        # Build the GUI so we can show error dialogs nicely
         self.build()
+
+        # Make sure we have a valid path to Steam user data
+        self.verify_userdata_path()
+
+        # Ask the user if they are okay with exiting Steam, and do so
+        self.found_steam = False
+        self.consensual_steam_exit()
+
+        # Now that we know if we exited Steam or not, do special stuff on close
+        self.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+        self.scan_for_users()
         self.refresh_statistics()
         self.mainloop()
+
+    def verify_userdata_path(self):
+        """Ensure the Steam user data path is correct, or exit with an error"""
+
+        # If the Steam user data folder does not exist, we have the wrong Steam path
+        if not op.exists(USERDATA_DIR):
+            # If the user did not set STEAM_DIR, suggest they do
+            # Assumes that they did not explicitly set it to the default
+            if STEAM_DIR == DEFAULT_STEAM_DIR:
+                secondhalf = "Try setting the STEAM_DIR environment variable."
+            # If the user set STEAM_DIR, it's pointing to the wrong place
+            else:
+                secondhalf = "STEAM_DIR environment variable is set to an invalid path."
+
+            # Show the error, and exit with a failure status
+            mb.showerror(
+                "Invalid path",
+                "Could not find the Steam/userdata folder. " +
+                secondhalf,
+                )
+            self.destroy()
+            sys.exit(1)
+
+    def consensual_steam_exit(self):
+        """If Steam is running, close it with the user's consent, or exit"""
+
+        # First, search for a Steam process
+        for process in psutil.process_iter():
+            if process.name().lower() in (
+                "steam",  # Linux
+                "steam.exe",  # Windows
+                ):
+                # We found Steam running, stop searching
+                self.found_steam = True
+                break
+
+        # The loop exited because it found Steam
+        if self.found_steam:
+            if mb.askyesno(
+                "Shutting down Steam",
+                "Since this app will be editing Steam configuration " +
+                "files, Steam must be closed while this app is running. May " +
+                "I send Steam the terminate signal?",
+                    ):
+                # Gently tell Steam to exit, and wait for it to do so
+                process.terminate()
+                process.wait()
+
+            # We do not have consent to exit Steam
+            else:
+                mb.showerror(
+                    "Steam musn't be running",
+                    "This PC ain't big enough for the two of us, and you chose Steam.",
+                    )
+                self.destroy()
+                sys.exit(1)
+
+    def on_closing(self):
+        """What to do if the user clicks to close this window"""
+
+        # We closed Steam, so let the user know they can reopen it
+        if self.found_steam:
+            mb.showinfo(
+                "Safe to relaunch Steam",
+                "You can safely relaunch Steam now.")
+
+        # Regular window exit
+        self.destroy()
 
     def get_config_file_path(self, loc_user_id: str) -> str:
         """Get the path to the config file for a given user
@@ -151,12 +212,10 @@ class MainWindow(tk.Tk):
 
         # User selection
         ttk.Label(self.frame, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
-        users = tuple(self.user_local_ids.keys())
-        self.user_choice.set(users[0])
         self.user_chooser = ttk.Combobox(
             self.frame,
             textvariable=self.user_choice,
-            values=users,
+            # values=users,
             state="readonly",
             )
         self.user_chooser.bind("<<ComboboxSelected>>", self.__on_user_select)
@@ -207,6 +266,11 @@ class MainWindow(tk.Tk):
             # TODO: This guarantees that the method is only called at launch
             self.destroy()
             sys.exit(1)
+
+        # Users found, configure the user chooser to show them
+        users = tuple(self.user_local_ids.keys())
+        self.user_chooser["values"] = users
+        self.user_chooser.set(users[0])
 
     def __on_launch_ops_edit(self):
         """The launch options field has been edited"""
@@ -290,24 +354,6 @@ class MainWindow(tk.Tk):
 
         self.refresh_statistics()
 
-
-# Before opening the window, exit Steam if it is open
-# First, search for a Steam process
-found_steam = False
-for process in psutil.process_iter():
-    if process.name().lower() in (
-        "steam",  # Linux
-        "steam.exe",  # Windows
-        ):
-        # We found Steam running, stop searching
-        found_steam = True
-        break
-
-# The loop exited because it found Steam
-if found_steam:
-    # Gently tell Steam to exit, and wait for it to do so
-    process.terminate()
-    process.wait()
 
 MainWindow()
 sys.exit(0)
