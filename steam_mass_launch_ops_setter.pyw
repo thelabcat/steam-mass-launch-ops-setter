@@ -152,7 +152,14 @@ class MainWindow(tk.Tk):
         # User selection
         ttk.Label(self.frame, text="User:", anchor=tk.E).grid(row=0, column=0, sticky=tk.NSEW)
         users = tuple(self.user_local_ids.keys())
-        self.user_chooser = ttk.OptionMenu(self.frame, self.user_choice, users[0], *users, command=self.__on_user_select)
+        self.user_choice.set(users[0])
+        self.user_chooser = ttk.Combobox(
+            self.frame,
+            textvariable=self.user_choice,
+            values=users,
+            state="readonly",
+            )
+        self.user_chooser.bind("<<ComboboxSelected>>", self.__on_user_select)
         self.user_chooser.grid(row=0, column=1, sticky=tk.NSEW)
 
         # Statistics display
