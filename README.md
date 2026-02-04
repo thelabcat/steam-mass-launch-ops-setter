@@ -15,7 +15,7 @@ You can find executables with bundled Python and the dependencies in [the Releas
 
 ## Usage
 
-The program will automatically search for a process named "Steam", and terminate it politely before opening, to prevent file editing clashes. It will then look in either the default location of the Steam directory on your OS, or the manually specified one if there is one. If it doesn't find the Steam directory, you'll get an error message. You can set the Steam path manually using the `STEAM_DIR` environment variable. This will be necessary if you are using the Flatpak version of Linux Steam, or if Windows Steam isn't installed on your C: drive.
+To prevent file editing clashes, the program will automatically search for a process named "Steam", and if it finds one, ask for permission to terminate it before fully initializing. With that out of the way, it will then look in either the default location of the Steam directory on your OS, or the manually specified one if there is one. If it doesn't find the Steam directory, you'll get an error message. You can set the Steam path manually using the `STEAM_DIR` environment variable. This will be necessary if you are using the Flatpak version of Linux Steam, or if Windows Steam isn't installed on your C: drive.
 
 If "Overwrite" is not checked, the app will only set the options of all the apps with no set launch options. If it is checked, all launch options are ensured to be the new ones. Note that the "Overwrite" checkbox has no function if the "Launch options:" field is blank. The app will just erase all launch options for all apps when you click "Set".
 
